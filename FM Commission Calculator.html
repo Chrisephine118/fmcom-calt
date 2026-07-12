@@ -1,0 +1,1211 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fulfilment Team Commission Calculator</title>
+<style>
+  :root{
+    --ink:#161b22;
+    --paper:#eef1f0;
+    --paper-raised:#ffffff;
+    --line:#d7dcda;
+    --text:#1b2321;
+    --text-dim:#5b6a66;
+    --accent:#0f6b5c;
+    --accent-soft:#dcece7;
+    --accent-ink:#083b32;
+    --good:#1f7a45;
+    --good-soft:#e0f1e6;
+    --warn:#a5690b;
+    --warn-soft:#faead2;
+    --bad:#b3352b;
+    --bad-soft:#fbe2df;
+    --shadow: 0 1px 2px rgba(20,30,28,0.06), 0 6px 20px rgba(20,30,28,0.05);
+    --radius: 10px;
+    --serif: Georgia, "Iowan Old Style", "PingFang SC", "Microsoft YaHei", serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --ink:#eef1f0;
+      --paper:#12100d0;
+      --paper: #11151a;
+      --paper-raised:#181e24;
+      --line:#2a333a;
+      --text:#e7ece9;
+      --text-dim:#93a29d;
+      --accent:#3fb59a;
+      --accent-soft:#173832;
+      --accent-ink:#bdeee0;
+      --good:#4ecb85;
+      --good-soft:#153826;
+      --warn:#e0a63f;
+      --warn-soft:#3a2c12;
+      --bad:#e2685d;
+      --bad-soft:#3a1a17;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ink:#eef1f0; --paper:#11151a; --paper-raised:#181e24; --line:#2a333a;
+    --text:#e7ece9; --text-dim:#93a29d; --accent:#3fb59a; --accent-soft:#173832;
+    --accent-ink:#bdeee0; --good:#4ecb85; --good-soft:#153826; --warn:#e0a63f;
+    --warn-soft:#3a2c12; --bad:#e2685d; --bad-soft:#3a1a17;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+  }
+  :root[data-theme="light"]{
+    --ink:#161b22; --paper:#eef1f0; --paper-raised:#ffffff; --line:#d7dcda;
+    --text:#1b2321; --text-dim:#5b6a66; --accent:#0f6b5c; --accent-soft:#dcece7;
+    --accent-ink:#083b32; --good:#1f7a45; --good-soft:#e0f1e6; --warn:#a5690b;
+    --warn-soft:#faead2; --bad:#b3352b; --bad-soft:#fbe2df;
+    --shadow: 0 1px 2px rgba(20,30,28,0.06), 0 6px 20px rgba(20,30,28,0.05);
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--text);
+    font-family:var(--sans);
+    font-size:14px;
+    line-height:1.5;
+    padding:0 0 64px 0;
+  }
+  ::selection{background:var(--accent-soft);}
+
+  a{color:var(--accent);}
+
+  .wrap{max-width:1180px;margin:0 auto;padding:0 20px;}
+
+  /* ---- Sticky KPI bar ---- */
+  .kpi-bar{
+    position:sticky;top:0;z-index:40;
+    background:var(--paper);
+    border-bottom:1px solid var(--line);
+    backdrop-filter: blur(6px);
+  }
+  .kpi-inner{
+    max-width:1180px;margin:0 auto;padding:12px 20px;
+    display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+  }
+  .kpi-title{font-family:var(--serif);font-size:17px;font-weight:700;color:var(--text);white-space:nowrap;}
+  .kpi-title small{display:block;font-family:var(--sans);font-weight:400;font-size:11px;color:var(--text-dim);letter-spacing:.02em;}
+  .kpi-metric{display:flex;align-items:baseline;gap:8px;margin-left:auto;}
+  .kpi-metric .num{font-variant-numeric:tabular-nums;font-size:26px;font-weight:700;font-family:var(--serif);}
+  .kpi-metric .cap{font-size:12px;color:var(--text-dim);}
+  .pill{
+    display:inline-flex;align-items:center;gap:6px;
+    padding:5px 12px;border-radius:100px;font-size:12px;font-weight:600;
+    letter-spacing:.01em;white-space:nowrap;
+  }
+  .pill.good{background:var(--good-soft);color:var(--good);}
+  .pill.warn{background:var(--warn-soft);color:var(--warn);}
+  .pill.bad{background:var(--bad-soft);color:var(--bad);}
+  .pill .dot{width:7px;height:7px;border-radius:50%;background:currentColor;}
+  .kpi-bar-track{height:6px;border-radius:4px;background:var(--line);overflow:hidden;width:180px;flex:0 0 auto;}
+  .kpi-bar-fill{height:100%;border-radius:4px;transition:width .25s ease, background .25s ease;}
+
+  /* ---- layout ---- */
+  header.hero{padding:28px 0 8px 0;}
+  header.hero h1{font-family:var(--serif);font-size:26px;margin:0 0 4px 0;letter-spacing:-.01em;text-wrap:balance;}
+  header.hero p{margin:0;color:var(--text-dim);font-size:13.5px;max-width:62ch;}
+  .month-row{display:flex;align-items:center;gap:8px;margin-top:10px;}
+  .month-row label{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-dim);}
+
+  section.card{
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    margin-top:20px;
+    overflow:hidden;
+  }
+  .card-head{
+    display:flex;align-items:center;gap:12px;
+    padding:16px 20px;border-bottom:1px solid var(--line);
+    cursor:pointer;user-select:none;
+  }
+  .card-head .rail{width:4px;align-self:stretch;border-radius:3px;background:var(--accent);flex:0 0 auto;min-height:22px;}
+  .card-head h2{font-family:var(--serif);font-size:16.5px;margin:0;flex:1;}
+  .card-head .sub{font-size:12px;color:var(--text-dim);font-weight:400;}
+  .card-head .chev{color:var(--text-dim);transition:transform .18s ease;font-size:12px;}
+  .card.collapsed .chev{transform:rotate(-90deg);}
+  .card-body{padding:18px 20px 22px 20px;}
+  .card.collapsed .card-body{display:none;}
+
+  h3.section-label{
+    font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-dim);
+    margin:0 0 10px 0;font-weight:600;
+  }
+
+  /* ---- tables ---- */
+  .tbl-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:8px;}
+  table{border-collapse:collapse;width:100%;min-width:max-content;}
+  thead th{
+    text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;
+    color:var(--text-dim);font-weight:600;padding:9px 10px;background:var(--paper);
+    border-bottom:1px solid var(--line);white-space:nowrap;position:sticky;top:0;
+  }
+  tbody td{padding:6px 10px;border-bottom:1px solid var(--line);white-space:nowrap;font-variant-numeric:tabular-nums;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:nth-child(even){background:color-mix(in srgb, var(--paper) 45%, transparent);}
+  tfoot td{padding:9px 10px;font-weight:700;border-top:2px solid var(--line);background:var(--accent-soft);font-variant-numeric:tabular-nums;}
+
+  input, select{
+    font:inherit;color:var(--text);background:var(--paper-raised);
+    border:1px solid var(--line);border-radius:6px;padding:5px 7px;
+    font-variant-numeric:tabular-nums;
+  }
+  input:focus, select:focus, button:focus{
+    outline:2px solid var(--accent);outline-offset:1px;
+  }
+  input[type=number]{width:88px;}
+  input.txt{width:170px;}
+  input.pct{width:64px;}
+  input.narrow{width:58px;}
+  select{padding:5px 6px;}
+  input:disabled, select:disabled{opacity:.5;background:var(--paper);}
+
+  .chk{width:17px;height:17px;cursor:pointer;}
+
+  .assign-box{display:flex;flex-direction:column;gap:3px;min-width:190px;}
+  .assign-chip{
+    display:flex;align-items:center;gap:5px;font-size:12px;padding:2px 6px;border-radius:6px;
+    white-space:nowrap;cursor:pointer;
+  }
+  .assign-chip.on{background:var(--accent-soft);color:var(--accent-ink);}
+  .assign-chip input{width:14px;height:14px;cursor:pointer;}
+  .assign-chip .role-tag{font-size:9.5px;color:var(--text-dim);border:1px solid var(--line);border-radius:4px;padding:0 4px;}
+  .assign-chip.on .role-tag{color:inherit;border-color:currentColor;opacity:.7;}
+  .assign-chip b{margin-left:auto;font-variant-numeric:tabular-nums;}
+
+  button{
+    font:inherit;cursor:pointer;border-radius:7px;border:1px solid var(--line);
+    background:var(--paper-raised);color:var(--text);padding:6px 12px;font-weight:600;font-size:12.5px;
+  }
+  button:hover{border-color:var(--accent);color:var(--accent);}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+  button.primary:hover{opacity:.92;color:#fff;}
+  button.ghost{border-color:transparent;background:transparent;color:var(--text-dim);padding:4px 8px;}
+  button.ghost:hover{color:var(--bad);}
+  button.sm{padding:4px 9px;font-size:11.5px;}
+
+  .toolbar{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap;}
+  .toolbar .spacer{flex:1;}
+
+  .grid-assump{
+    display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px;
+  }
+  .assump-item{
+    border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--paper);
+  }
+  .assump-item label{display:block;font-size:11px;color:var(--text-dim);margin-bottom:5px;}
+  .assump-item .row{display:flex;align-items:center;gap:6px;}
+  .assump-item .row input{width:100%;}
+  .assump-item .hint{font-size:10.5px;color:var(--text-dim);margin-top:4px;line-height:1.4;}
+
+  .stat-row{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:16px;}
+  .stat{
+    flex:1;min-width:150px;border:1px solid var(--line);border-radius:8px;padding:12px 14px;background:var(--paper);
+  }
+  .stat .label{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-dim);margin-bottom:5px;}
+  .stat .value{font-family:var(--serif);font-size:20px;font-variant-numeric:tabular-nums;}
+  .stat .value.small{font-size:15px;}
+
+  .flag{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:2px 7px;border-radius:100px;}
+  .flag.bad{background:var(--bad-soft);color:var(--bad);}
+  .flag.ok{background:var(--good-soft);color:var(--good);}
+
+  .note{
+    font-size:12px;color:var(--text-dim);background:var(--paper);border:1px dashed var(--line);
+    border-radius:8px;padding:10px 12px;margin-bottom:14px;
+  }
+  .note.warn{border-color:var(--warn);color:var(--warn);background:var(--warn-soft);}
+
+  footer.app-foot{max-width:1180px;margin:28px auto 0 auto;padding:0 20px;color:var(--text-dim);font-size:11.5px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+
+  @media (prefers-reduced-motion: reduce){
+    *{transition:none !important;}
+  }
+
+  @media (max-width:640px){
+    .kpi-metric{margin-left:0;}
+    .kpi-inner{gap:10px;}
+  }
+
+  /* ---- print report (hidden on screen, shown only when printing) ---- */
+  #printReport{display:none;}
+  #printReport h1{font-family:var(--serif);font-size:20px;margin:0 0 2px 0;}
+  #printReport .meta{font-size:11px;color:#555;margin-bottom:14px;}
+  #printReport .badge{display:inline-block;padding:3px 10px;border-radius:100px;font-size:11px;font-weight:700;margin-left:8px;}
+  #printReport .badge.good{background:#e0f1e6;color:#1f7a45;}
+  #printReport .badge.bad{background:#fbe2df;color:#b3352b;}
+  #printReport h2{font-family:var(--serif);font-size:14px;margin:18px 0 6px 0;border-bottom:1px solid #ccc;padding-bottom:3px;}
+  #printReport table{border-collapse:collapse;width:100%;font-size:11px;margin-bottom:6px;}
+  #printReport th{text-align:left;background:#f0f0f0;padding:4px 6px;border:1px solid #ccc;font-size:10px;text-transform:uppercase;}
+  #printReport td{padding:4px 6px;border:1px solid #ccc;font-variant-numeric:tabular-nums;}
+  #printReport .stats{display:flex;gap:16px;margin:10px 0;flex-wrap:wrap;}
+  #printReport .stats div{border:1px solid #ccc;border-radius:6px;padding:8px 12px;}
+  #printReport .stats .label{font-size:10px;color:#666;text-transform:uppercase;}
+  #printReport .stats .value{font-family:var(--serif);font-size:16px;}
+
+  @media print{
+    body *{visibility:hidden;}
+    #printReport, #printReport *{visibility:visible;}
+    #printReport{display:block;position:absolute;top:0;left:0;width:100%;color:#111;background:#fff;}
+    @page{margin:16mm 14mm;}
+  }
+</style>
+</head>
+<body>
+
+<div class="kpi-bar">
+  <div class="kpi-inner">
+    <div class="kpi-title">Fulfilment Team Calculator<small>Main Comm · Subcomm · 16% Budget KPI</small></div>
+    <div class="kpi-bar-track"><div class="kpi-bar-fill" id="kpiTrackFill"></div></div>
+    <div class="kpi-metric">
+      <span class="cap">Team Cost</span>
+      <span class="num" id="kpiPct">--</span>
+      <span class="cap">/ <span id="kpiCap">16%</span></span>
+    </div>
+    <div id="kpiPill"></div>
+  </div>
+</div>
+
+<div class="wrap">
+  <header class="hero">
+    <h1>本月 Commission 计算器</h1>
+    <p>Main Comm、Subcomm、Active Client、Team Roster 全部可以自己加/改。改任何数字，右上角 16% KPI 会即时更新。数据自动存在这台电脑的浏览器里；每个月算完，点右下角「生成本月 PDF」存档。</p>
+    <div class="month-row">
+      <label for="reportMonthInput">结算月份</label>
+      <input type="text" id="reportMonthInput" class="txt" style="width:140px" placeholder="例如 2026年7月">
+    </div>
+  </header>
+
+  <div class="note" id="fmNote">
+    ℹ️ FM 的 Main Comm 目前先拿掉（等你确认自己的 contract 条款），Subcomm 维持不变。想恢复的话，去下面「参数设定」打开开关即可，不用重新做表。
+  </div>
+
+  <!-- ASSUMPTIONS -->
+  <section class="card" id="card-assump">
+    <div class="card-head" onclick="toggleCard('card-assump')">
+      <div class="rail"></div>
+      <h2>参数设定 <span class="sub">Assumptions — 不常变的规则，但一样可以改</span></h2>
+      <span class="chev">▾</span>
+    </div>
+    <div class="card-body">
+      <div class="grid-assump" id="assumpGrid"></div>
+    </div>
+  </section>
+
+  <!-- ACTIVE CLIENTS -->
+  <section class="card" id="card-clients">
+    <div class="card-head" onclick="toggleCard('card-clients')">
+      <div class="rail"></div>
+      <h2>Active Client 清单 <span class="sub" id="clientSub"></span></h2>
+      <span class="chev">▾</span>
+    </div>
+    <div class="card-body">
+      <div class="toolbar">
+        <button class="primary sm" onclick="addClient()">+ Add Client</button>
+        <span class="spacer"></span>
+        <span style="font-size:12px;color:var(--text-dim);">多 branch 客户请合并成一行填一个 MRR，Note 栏写清楚有几个 sub branch</span>
+      </div>
+      <div class="tbl-scroll">
+        <table>
+          <thead><tr><th>#</th><th>Client Name</th><th>MRR (RM)</th><th>Note</th><th></th></tr></thead>
+          <tbody id="clientsBody"></tbody>
+          <tfoot><tr><td></td><td>Total MRR</td><td id="clientsTotalMRR"></td><td colspan="2"></td></tr></tfoot>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- TEAM ROSTER -->
+  <section class="card" id="card-roster">
+    <div class="card-head" onclick="toggleCard('card-roster')">
+      <div class="rail"></div>
+      <h2>Team Roster <span class="sub">人员名单 — 新增/离职直接在这里改</span></h2>
+      <span class="chev">▾</span>
+    </div>
+    <div class="card-body">
+      <div class="toolbar">
+        <button class="primary sm" onclick="addStaff()">+ Add Staff</button>
+      </div>
+      <div class="tbl-scroll">
+        <table>
+          <thead><tr>
+            <th>Name</th><th>Role</th><th>Basic (RM)</th><th>Grade</th>
+            <th>Values Check</th><th>自己 Clients<br>(DM only)</th><th></th>
+          </tr></thead>
+          <tbody id="rosterBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- MAIN COMM -->
+  <section class="card" id="card-main">
+    <div class="card-head" onclick="toggleCard('card-main')">
+      <div class="rail"></div>
+      <h2>Main Comm <span class="sub">DM: MRR × Grade% × (自己Clients÷Total) · DS: MRR × Grade% × 50% · FM: 已移除</span></h2>
+      <span class="chev">▾</span>
+    </div>
+    <div class="card-body">
+      <div class="tbl-scroll">
+        <table>
+          <thead><tr>
+            <th>角色</th><th>Type</th><th>Grade</th><th>比例</th><th>Grade%</th>
+            <th>Gross Main Comm</th>
+          </tr></thead>
+          <tbody id="mainCommBody"></tbody>
+          <tfoot><tr><td colspan="5">TOTAL MAIN COMM</td><td id="mainCommTotal"></td></tr></tfoot>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- SUBCOMM SERVICE LIST -->
+  <section class="card" id="card-services">
+    <div class="card-head" onclick="toggleCard('card-services')">
+      <div class="rail"></div>
+      <h2>Subcomm — Service List <span class="sub">Pool = (Fee×(1-Disc%)-Cost) × Pool% · 按 Type 自动套用 Pool%，也可以每行自己改</span></h2>
+      <span class="chev">▾</span>
+    </div>
+    <div class="card-body">
+      <div class="toolbar">
+        <button class="primary sm" onclick="addService()">+ Add Service</button>
+        <span class="spacer"></span>
+      </div>
+      <div class="tbl-scroll" id="servicesTableWrap"></div>
+    </div>
+  </section>
+
+  <!-- SUBCOMM BREAKDOWN -->
+  <section class="card" id="card-breakdown">
+    <div class="card-head" onclick="toggleCard('card-breakdown')">
+      <div class="rail"></div>
+      <h2>Subcomm 明细 <span class="sub">每个 Active service，谁拿了多少，一笔一笔列出来</span></h2>
+      <span class="chev">▾</span>
+    </div>
+    <div class="card-body">
+      <div class="tbl-scroll">
+        <table>
+          <thead><tr><th>Service</th><th>人</th><th>角色</th><th>Cadence</th><th>金额</th></tr></thead>
+          <tbody id="breakdownBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- PER PERSON SUMMARY -->
+  <section class="card" id="card-summary">
+    <div class="card-head" onclick="toggleCard('card-summary')">
+      <div class="rail"></div>
+      <h2>Per-Person Summary <span class="sub">谁的 Subcomm 超过 Main Comm，一眼看到</span></h2>
+      <span class="chev">▾</span>
+    </div>
+    <div class="card-body">
+      <div class="tbl-scroll">
+        <table>
+          <thead><tr>
+            <th>角色</th><th>Main Comm</th><th>Subcomm</th><th>Total Comm</th>
+            <th>EPF 13%</th><th>Total + EPF</th><th>Total Cost<br>(Basic+Comm+EPF)</th><th>Flag</th>
+          </tr></thead>
+          <tbody id="summaryBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- BUDGET CHECK -->
+  <section class="card" id="card-budget">
+    <div class="card-head" onclick="toggleCard('card-budget')">
+      <div class="rail"></div>
+      <h2>Budget Check <span class="sub">vs 16% of Total Revenue — 你的核心 KPI</span></h2>
+      <span class="chev">▾</span>
+    </div>
+    <div class="card-body">
+      <div class="stat-row" id="budgetStats"></div>
+      <div class="tbl-scroll">
+        <table>
+          <tbody id="budgetBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <footer class="app-foot">
+    <span>本地自动保存于此浏览器 · 每个月算完，生成一份 PDF 存档最保险</span>
+    <span style="display:flex;gap:8px;">
+      <button class="sm primary" onclick="generateMonthlyPDF()">🖨️ 生成本月 PDF</button>
+      <button class="sm" onclick="resetDemo()">↺ Reset to June Demo</button>
+    </span>
+  </footer>
+</div>
+
+<div id="printReport"></div>
+
+<script>
+/* ============================================================
+   STATE
+   ============================================================ */
+const STORAGE_KEY = 'fm_comm_calculator_v1';
+
+function uid(prefix){ return prefix + '_' + Math.random().toString(36).slice(2,9); }
+
+function defaultMonthLabel(){
+  const d = new Date();
+  return `${d.getFullYear()}年${d.getMonth()+1}月`;
+}
+function demoState(){
+  return {
+    reportMonth: defaultMonthLabel(),
+    assumptions:{
+      standardPoolPct: 44,
+      secondBranchPoolPct: 18,
+      dmSplitPct: 35,
+      dsSplitPct: 15,
+      fmSplitPct: 20,
+      dsMainCommPct: 50,
+      fmMainCommEnabled: false,
+      epfPct: 13,
+      budgetCapPct: 16
+    },
+    gradeTable:{
+      DM:{ S:1.0, A:0.8, B:0.5, 'C/F':0, 'Values Fail':0 },
+      DS:{ S:0.8, A:0.5, B:0.3, 'C/F':0, 'Values Fail':0 },
+      FM:{ S:0.8, A:0.5, B:0.3, 'C/F':0, 'Values Fail':0 }
+    },
+    clients:[
+      {id:uid('c'),name:'1. Vibrance',mrr:3500,note:''},
+      {id:uid('c'),name:'2. 普健中医诊所 Main',mrr:3500,note:'sub 3 branch RM2000/each'},
+      {id:uid('c'),name:'3. Alma Physio',mrr:3500,note:''},
+      {id:uid('c'),name:'4. WellHealth',mrr:3500,note:''},
+      {id:uid('c'),name:'5. Wellness Chiro',mrr:3500,note:''},
+      {id:uid('c'),name:'6. Pris Wellness',mrr:3500,note:''},
+      {id:uid('c'),name:'7. Omega Clinic',mrr:3500,note:''},
+      {id:uid('c'),name:'Eden Family',mrr:3500,note:''},
+      {id:uid('c'),name:'8. Just Chiro',mrr:3500,note:''},
+      {id:uid('c'),name:'9. MyScoli Physio',mrr:3500,note:''},
+      {id:uid('c'),name:'10. Aloop Chiro',mrr:3500,note:''},
+      {id:uid('c'),name:'11. Ease Physio',mrr:3500,note:''},
+      {id:uid('c'),name:'Just TCM',mrr:3500,note:''},
+      {id:uid('c'),name:'Perform Plus',mrr:3000,note:''},
+      {id:uid('c'),name:'J Chiro',mrr:3500,note:''},
+      {id:uid('c'),name:'Klinik Lo',mrr:3500,note:''},
+      {id:uid('c'),name:'.Wee Therapy',mrr:3000,note:''},
+      {id:uid('c'),name:'SpinAcare',mrr:3000,note:''},
+      {id:uid('c'),name:'Integral',mrr:2000,note:''},
+      {id:uid('c'),name:'Remarkable',mrr:2000,note:''},
+      {id:uid('c'),name:'Lumispine',mrr:2000,note:''},
+      {id:uid('c'),name:'Accupunture Seong',mrr:0,note:''},
+      {id:uid('c'),name:'Truspine Chiro',mrr:3500,note:''},
+      {id:uid('c'),name:'Very Pain TCM',mrr:3500,note:''},
+      {id:uid('c'),name:'Meiko',mrr:3500,note:''},
+      {id:uid('c'),name:'Spinelab',mrr:3500,note:''},
+      {id:uid('c'),name:'Klinik Eliza',mrr:3500,note:''},
+      {id:uid('c'),name:'Passion Care',mrr:3500,note:''},
+      {id:uid('c'),name:'Poliklinik Chu',mrr:0,note:''},
+      {id:uid('c'),name:'Yin Xin TCM',mrr:3000,note:''},
+      {id:uid('c'),name:'Chirolab',mrr:3500,note:''},
+      {id:uid('c'),name:'Klinik TRICLINIC',mrr:3500,note:''},
+      {id:uid('c'),name:'Silvergenz',mrr:3500,note:''},
+      {id:uid('c'),name:'慈怀堂',mrr:3500,note:''},
+      {id:uid('c'),name:'Neuro',mrr:3500,note:''},
+      {id:uid('c'),name:'Joo Eng',mrr:3500,note:''},
+      {id:uid('c'),name:'Dr Yong',mrr:3500,note:''},
+      {id:uid('c'),name:'My clinic+',mrr:3500,note:''},
+      {id:uid('c'),name:'Klinik 360',mrr:2800,note:'sub branch x4 (2800 each)'},
+      {id:uid('c'),name:'evercare',mrr:3500,note:''},
+      {id:uid('c'),name:'De Feng',mrr:2100,note:''},
+      {id:uid('c'),name:'Vcare',mrr:1516,note:''},
+      {id:uid('c'),name:'Vertex',mrr:1283,note:''}
+    ],
+    staff:[
+      {id:uid('s'), name:'Chloe',  role:'DM', basic:3000, grade:'A/A-', valuesPass:true, ownClients:18},
+      {id:uid('s'), name:'Chris',  role:'DM', basic:3000, grade:'A/A-', valuesPass:true, ownClients:3},
+      {id:uid('s'), name:'Rich',   role:'DM', basic:3000, grade:'C/F',  valuesPass:true, ownClients:15},
+      {id:uid('s'), name:'Bryan',  role:'DM', basic:2800, grade:'C/F',  valuesPass:true, ownClients:0},
+      {id:uid('s'), name:'Yuki',   role:'DS', basic:3000, grade:'A/A-', valuesPass:true, ownClients:0},
+      {id:uid('s'), name:'ZL',     role:'DS', basic:3000, grade:'B+/B', valuesPass:true, ownClients:0},
+      {id:uid('s'), name:'You (FM)', role:'FM', basic:0, grade:'B+/B', valuesPass:true, ownClients:0}
+    ],
+    services:[]
+  };
+}
+
+function demoServices(staff){
+  // Faithful copy of the real 💰 Subcomm tab (Jun data). DM1→Chloe, DM2→Chris,
+  // DS1→Yuki, DS2→ZL is my best-guess mapping since the sheet only labels
+  // slots "DM1/DM2", not names — reassign in Service List below if wrong.
+  const byName = n => staff.find(s=>s.name===n).id;
+  const DM1=byName('Chloe'), DM2=byName('Chris'), DS1=byName('Yuki'), DS2=byName('ZL');
+  return [
+    svc('Meta Ads + Appt Setting','Standard','Monthly',3500,930,0,false,[DM1],[DS1,DS2]),
+    svc('Google Ads','Standard','Monthly',1400,70,0,false,[DM1],[DS1]),
+    svc('Google Ads + Appt Setting','Standard','Monthly',1800,420,0,false,[DM1],[DS1]),
+    svc('Branding Campaign','Standard','Monthly',500,286,5,false,[],[]),
+    svc('普健中医诊所 — 2nd Branch (3 sub-branch, RM2000 each)','2ndBranch','Monthly',6000,3120,5,true,[DM1],[DS1,DS2]),
+    svc('Klinik 360 — 2nd Branch (4 sub-branch, RM2800 each)','2ndBranch','Monthly',11200,6720,5,true,[DM2],[DS1,DS2]),
+    svc('Recruitment Campaign 3mth (Same WA)','Standard','Monthly',1300,631,5,false,[],[]),
+    svc('Recruitment Campaign 1mth (Same WA)','Standard','Monthly',1500,711,5,false,[],[]),
+    svc('Sub Account Add-On (Diff WA Number)','Standard','Monthly',150,100,0,false,[DM1],[]),
+    svc('Increase RM1,500 Ads Spent','Standard','Monthly',500,230,5,false,[],[]),
+    svc('XHS Management','Standard','One-Time',1000,150,5,false,[],[]),
+    svc('Page Management','Standard','One-Time',1500,75,5,false,[],[]),
+    svc('Photo Shooting + Patient Testimonials','Standard','One-Time',1300,483.71,0,true,[DM1],[DS1]),
+    svc('Photo Shooting + Patient Testimonials','Standard','One-Time',2300,1050.16,0,true,[DM2],[DS1,DS2]),
+    svc('Photo Shooting','Standard','One-Time',800,400,0,false,[],[]),
+    svc('Patient Testimonials','Standard','One-Time',800,40,5,true,[DM2],[DS1,DS2]),
+    svc('Successful Closed Referral','Standard','One-Time',500,0,0,false,[DM1],[]),
+    svc('Google + Facebook Review','Standard','One-Time',50,0,0,false,[DM1],[]),
+  ];
+}
+function svc(name,type,cadence,fee,cost,discPct,active,dmIds,dsIds){
+  return {
+    id: uid('sv'), name, type, cadence, fee, cost, discPct, active,
+    poolPctOverride:null,
+    assigned: [...(dmIds||[]), ...(dsIds||[])]
+  };
+}
+
+let state = load();
+
+function migrate(s){
+  // older saves used separate dmAssigned/dsAssigned lists per service
+  (s.services||[]).forEach(sv=>{
+    if(sv.assigned===undefined){
+      sv.assigned = [...(sv.dmAssigned||[]), ...(sv.dsAssigned||[])];
+      delete sv.dmAssigned; delete sv.dsAssigned;
+    }
+  });
+  return s;
+}
+function load(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw){ return migrate(JSON.parse(raw)); }
+  }catch(e){}
+  const s = demoState();
+  s.services = demoServices(s.staff);
+  return s;
+}
+function save(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+function resetDemo(){
+  if(!confirm('确定要重置成 6 月示范数据吗？现有的改动会被覆盖（Export 备份过就没问题）。')) return;
+  const s = demoState();
+  s.services = demoServices(s.staff);
+  state = s;
+  save(); renderAll();
+}
+
+/* ============================================================
+   HELPERS
+   ============================================================ */
+function fmt(n){
+  if(n===undefined||n===null||isNaN(n)) n = 0;
+  const neg = n < -0.001;
+  const abs = Math.abs(n);
+  return (neg?'-':'') + 'RM' + abs.toLocaleString('en-MY',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+function pctfmt(n,d=1){
+  if(n===undefined||n===null||isNaN(n)) n=0;
+  return (n*100).toFixed(d)+'%';
+}
+function toggleCard(id){
+  document.getElementById(id).classList.toggle('collapsed');
+}
+function num(v){ const n = parseFloat(v); return isNaN(n) ? 0 : n; }
+
+/* ============================================================
+   COMPUTATION
+   ============================================================ */
+function compute(){
+  const A = state.assumptions;
+  const totalMRR = state.clients.reduce((s,c)=>s+num(c.mrr),0);
+  const totalClients = state.clients.length;
+
+  // Main comm per staff
+  const fmStaff = state.staff.filter(s=>s.role==='FM');
+
+  const mainComm = {}; // id -> amount
+  state.staff.forEach(s=>{
+    let gradePct = gradePctLookup(s.role, s.grade);
+    let ratio = 0, amt = 0;
+    if(s.role==='DM'){
+      ratio = s.valuesPass ? (totalClients? num(s.ownClients)/totalClients : 0) : 0;
+      amt = totalMRR * (gradePct/100) * ratio;
+    } else if(s.role==='DS'){
+      ratio = s.valuesPass ? (A.dsMainCommPct/100) : 0;
+      amt = totalMRR * (gradePct/100) * ratio;
+    } else if(s.role==='FM'){
+      ratio = A.fmMainCommEnabled ? (s.valuesPass?1:0) : 0;
+      amt = A.fmMainCommEnabled ? totalMRR*(gradePct/100)*ratio : 0;
+    }
+    mainComm[s.id] = {amt, ratio, gradePct};
+  });
+
+  // Subcomm per service
+  const subcommByStaff = {}; // id -> {monthly, oneTime}
+  state.staff.forEach(s=> subcommByStaff[s.id] = {monthly:0, oneTime:0});
+  let coExtraMonthly = 0, coExtraOneTime = 0;
+  let revenueMonthlyFee = 0, revenueOneTimeFee = 0;
+
+  const serviceRows = state.services.map(sv=>{
+    const poolPct = (sv.poolPctOverride!==null && sv.poolPctOverride!==undefined && sv.poolPctOverride!=='')
+      ? num(sv.poolPctOverride)
+      : (sv.type==='2ndBranch' ? A.secondBranchPoolPct : A.standardPoolPct);
+    const base = num(sv.fee)*(1-num(sv.discPct)/100) - num(sv.cost);
+    const pool = sv.active ? base * (poolPct/100) : 0;
+    const dmShareEach = sv.active ? pool*(A.dmSplitPct/100) : 0;
+    const dsShareEach = sv.active ? pool*(A.dsSplitPct/100) : 0;
+    const fmShare = sv.active ? pool*(A.fmSplitPct/100) : 0;
+
+    // breakdown: exactly who gets how much from THIS service, any role, freely picked
+    const breakdown = [];
+    let assignedTotal = 0;
+    (sv.assigned||[]).forEach(id=>{
+      const staff = state.staff.find(s=>s.id===id);
+      if(!staff || staff.role==='FM') return; // FM is always-on, handled below
+      const amt = staff.role==='DM' ? dmShareEach : dsShareEach;
+      assignedTotal += amt;
+      addSub(id, sv.cadence, amt);
+      breakdown.push({staffId:id, name:staff.name, role:staff.role, amount:amt});
+    });
+    fmStaff.forEach(f=>{
+      addSub(f.id, sv.cadence, fmShare);
+      if(sv.active) breakdown.push({staffId:f.id, name:f.name, role:'FM', amount:fmShare});
+    });
+    const fmTotal = fmShare * fmStaff.length;
+
+    const coExtra = sv.active ? (pool - assignedTotal - fmTotal) : 0;
+    if(sv.active){
+      if(sv.cadence==='Monthly'){ coExtraMonthly += coExtra; revenueMonthlyFee += num(sv.fee); }
+      else { coExtraOneTime += coExtra; revenueOneTimeFee += num(sv.fee); }
+    }
+    return {sv, poolPct, pool, dmShareEach, dsShareEach, fmShare, coExtra, breakdown};
+  });
+  function addSub(staffId, cadence, amt){
+    if(!subcommByStaff[staffId]) subcommByStaff[staffId] = {monthly:0, oneTime:0};
+    if(cadence==='Monthly') subcommByStaff[staffId].monthly += amt;
+    else subcommByStaff[staffId].oneTime += amt;
+  }
+
+  const totalRevenue = totalMRR + revenueMonthlyFee + revenueOneTimeFee;
+
+  const perPerson = state.staff.map(s=>{
+    const sub = subcommByStaff[s.id] || {monthly:0, oneTime:0};
+    const subTotal = sub.monthly + sub.oneTime;
+    const mc = mainComm[s.id].amt;
+    const totalComm = mc + subTotal;
+    const epf = (mc + subTotal) * (A.epfPct/100); // combined EPF for display purposes
+    const epfOnMain = mc>0 ? (mc)*(A.epfPct/100) : 0;
+    const totalCost = num(s.basic) + mc + subTotal + (num(s.basic)+mc)*(A.epfPct/100) + subTotal*(A.epfPct/100);
+    return {staff:s, mainComm:mc, sub, subTotal, totalComm, totalCost};
+  });
+
+  const totalMainComm = perPerson.reduce((s,p)=>s+p.mainComm,0);
+  const totalSubcomm = perPerson.reduce((s,p)=>s+p.subTotal,0);
+  const totalBasic = state.staff.reduce((s,p)=>s+num(p.basic),0);
+  const epfBasicMain = (totalBasic+totalMainComm)*(A.epfPct/100);
+  const epfSubcomm = totalSubcomm*(A.epfPct/100);
+  const teamCost = totalBasic+totalMainComm+totalSubcomm+epfBasicMain+epfSubcomm;
+  const teamCostPct = totalRevenue>0 ? teamCost/totalRevenue : 0;
+
+  return {
+    totalMRR, totalClients, mainComm, serviceRows, perPerson,
+    totalMainComm, totalSubcomm, totalBasic, epfBasicMain, epfSubcomm,
+    teamCost, teamCostPct, totalRevenue, revenueMonthlyFee, revenueOneTimeFee,
+    coExtraMonthly, coExtraOneTime
+  };
+}
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+function attrName(key){ return 'data-'+key.replace(/([A-Z])/g,'-$1').toLowerCase(); }
+function captureFocus(){
+  const el = document.activeElement;
+  if(!el || (el.tagName!=='INPUT' && el.tagName!=='SELECT')) return null;
+  const keys = Object.keys(el.dataset);
+  if(keys.length===0) return null;
+  const sel = el.tagName.toLowerCase() + keys.map(k=>`[${attrName(k)}="${(el.dataset[k]||'').replace(/"/g,'\\"')}"]`).join('');
+  let start=null,end=null;
+  if(typeof el.selectionStart==='number'){ start=el.selectionStart; end=el.selectionEnd; }
+  return {sel,start,end,scrollY:window.scrollY};
+}
+function restoreFocus(cap){
+  if(!cap) return;
+  let el;
+  try{ el = document.querySelector(cap.sel); }catch(e){ el = null; }
+  if(el){
+    el.focus();
+    if(cap.start!=null && el.setSelectionRange){
+      try{ el.setSelectionRange(cap.start,cap.end); }catch(e){}
+    }
+  }
+  window.scrollTo(0,cap.scrollY);
+}
+
+function renderAll(){
+  const cap = captureFocus();
+  const R = compute();
+  renderKPI(R);
+  renderAssumptions();
+  renderClients(R);
+  renderRoster();
+  renderMainComm(R);
+  renderServices(R);
+  renderBreakdown(R);
+  renderSummary(R);
+  renderBudget(R);
+  save();
+  restoreFocus(cap);
+}
+
+function renderKPI(R){
+  const capPct = state.assumptions.budgetCapPct;
+  document.getElementById('kpiCap').textContent = capPct+'%';
+  document.getElementById('kpiPct').textContent = pctfmt(R.teamCostPct);
+  const ratio = Math.min(R.teamCostPct/(capPct/100), 1.6);
+  const fill = document.getElementById('kpiTrackFill');
+  fill.style.width = Math.min(ratio*100/1,100)+'%';
+  let state_ = 'good';
+  if(R.teamCostPct>capPct/100) state_='bad';
+  else if(R.teamCostPct>capPct/100*0.9) state_='warn';
+  fill.style.background = state_==='good'?'var(--good)':state_==='warn'?'var(--warn)':'var(--bad)';
+  const pill = document.getElementById('kpiPill');
+  const label = state_==='good'?'✅ WITHIN BUDGET':state_==='warn'?'⚠️ 接近上限':'🚨 OVER BUDGET';
+  pill.innerHTML = `<span class="pill ${state_}"><span class="dot"></span>${label}</span>`;
+
+  document.getElementById('fmNote').style.display = state.assumptions.fmMainCommEnabled ? 'none' : 'block';
+}
+
+function renderAssumptions(){
+  const A = state.assumptions;
+  const grid = document.getElementById('assumpGrid');
+  const items = [
+    ['standardPoolPct','一般 Service Pool %','套用在 Standard 类型的 service（Meta Ads、Photo Shooting 等）'],
+    ['secondBranchPoolPct','2nd Branch Pool %','追加 branch 增量工作量较小，独立设一个比一般 service 低的比例'],
+    ['dmSplitPct','DM1/DM2 各自 %','每个被 assign 的 DM，各拿 Pool 的这个 %'],
+    ['dsSplitPct','DS1/DS2 各自 %','每个被 assign 的 Designer，各拿 Pool 的这个 %'],
+    ['fmSplitPct','FM %（Subcomm）','FM 永远有份，每个 service 都拿这个 %'],
+    ['dsMainCommPct','DS Main Comm 比例','Designer 的 Main Comm 固定拿 MRR×Grade% 的这个 %（不受 client 数量影响）'],
+    ['epfPct','EPF %','算在 Basic + Main Comm + Subcomm 上面的 EPF 比例'],
+    ['budgetCapPct','16% Budget Cap','Team Cost 不能超过 Total Revenue 的这个 %，这是你的核心 KPI']
+  ];
+  grid.innerHTML = items.map(([key,label,hint])=>`
+    <div class="assump-item">
+      <label>${label}</label>
+      <div class="row">
+        <input type="number" step="0.5" value="${A[key]}" data-assump="${key}">
+        <span>%</span>
+      </div>
+      <div class="hint">${hint}</div>
+    </div>
+  `).join('') + `
+    <div class="assump-item">
+      <label>FM Main Comm</label>
+      <div class="row">
+        <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text);">
+          <input type="checkbox" class="chk" ${A.fmMainCommEnabled?'checked':''} data-assump-bool="fmMainCommEnabled">
+          启用（等你确认 contract 后打开）
+        </label>
+      </div>
+      <div class="hint">目前先关闭，Main Comm 不计算 FM 那一份；Subcomm 的 FM 20% 不受影响。</div>
+    </div>
+  `;
+  grid.querySelectorAll('[data-assump]').forEach(el=>{
+    el.addEventListener('input', e=>{
+      state.assumptions[e.target.dataset.assump] = num(e.target.value);
+      renderAll();
+    });
+  });
+  grid.querySelectorAll('[data-assump-bool]').forEach(el=>{
+    el.addEventListener('change', e=>{
+      state.assumptions[e.target.dataset.assumpBool] = e.target.checked;
+      renderAll();
+    });
+  });
+}
+
+function renderClients(R){
+  document.getElementById('clientSub').textContent = `${state.clients.length} clients · Total MRR ${fmt(R.totalMRR)}`;
+  const body = document.getElementById('clientsBody');
+  body.innerHTML = state.clients.map((c,i)=>`
+    <tr>
+      <td>${i+1}</td>
+      <td><input class="txt" value="${escAttr(c.name)}" data-c="${c.id}" data-f="name"></td>
+      <td><input type="number" value="${c.mrr}" data-c="${c.id}" data-f="mrr"></td>
+      <td><input class="txt" style="width:260px" value="${escAttr(c.note)}" data-c="${c.id}" data-f="note" placeholder="e.g. sub 4 branch RM2800 each"></td>
+      <td><button class="ghost sm" data-del="${c.id}">✕</button></td>
+    </tr>
+  `).join('');
+  document.getElementById('clientsTotalMRR').textContent = fmt(R.totalMRR);
+
+  body.querySelectorAll('input').forEach(el=>{
+    el.addEventListener('input', e=>{
+      const c = state.clients.find(x=>x.id===e.target.dataset.c);
+      const f = e.target.dataset.f;
+      c[f] = f==='mrr' ? num(e.target.value) : e.target.value;
+      renderAll();
+    });
+  });
+  body.querySelectorAll('[data-del]').forEach(el=>{
+    el.addEventListener('click', e=>{
+      state.clients = state.clients.filter(c=>c.id!==e.target.dataset.del);
+      renderAll();
+    });
+  });
+}
+function addClient(){
+  state.clients.push({id:uid('c'), name:'New Client', mrr:0, note:''});
+  renderAll();
+}
+
+function renderRoster(){
+  const body = document.getElementById('rosterBody');
+  const grades = {'DM':['S','A/A-','B+/B','C/F'],'DS':['S','A/A-','B+/B','C/F'],'FM':['S','A/A-','B+/B','C/F']};
+  body.innerHTML = state.staff.map(s=>`
+    <tr>
+      <td><input class="txt" style="width:130px" value="${escAttr(s.name)}" data-s="${s.id}" data-f="name"></td>
+      <td>
+        <select data-s="${s.id}" data-f="role">
+          ${['DM','DS','FM'].map(r=>`<option value="${r}" ${s.role===r?'selected':''}>${r}</option>`).join('')}
+        </select>
+      </td>
+      <td><input type="number" value="${s.basic}" data-s="${s.id}" data-f="basic"></td>
+      <td>
+        <select data-s="${s.id}" data-f="grade">
+          ${gradeOptionsFor(s.role).map(g=>`<option value="${g}" ${s.grade===g?'selected':''}>${g}</option>`).join('')}
+        </select>
+      </td>
+      <td>
+        <select data-s="${s.id}" data-f="valuesPass">
+          <option value="true" ${s.valuesPass?'selected':''}>Pass</option>
+          <option value="false" ${!s.valuesPass?'selected':''}>Fail</option>
+        </select>
+      </td>
+      <td><input type="number" value="${s.ownClients}" data-s="${s.id}" data-f="ownClients" ${s.role!=='DM'?'disabled':''}></td>
+      <td><button class="ghost sm" data-del="${s.id}">✕</button></td>
+    </tr>
+  `).join('');
+
+  body.querySelectorAll('input,select').forEach(el=>{
+    const evt = el.tagName==='SELECT' ? 'change' : 'input';
+    el.addEventListener(evt, e=>handleStaffChange(e));
+  });
+  body.querySelectorAll('[data-del]').forEach(el=>{
+    el.addEventListener('click', e=>{
+      if(!confirm('删除这位员工吗？他被 assign 的 service 那一份会自动变 0。')) return;
+      state.staff = state.staff.filter(s=>s.id!==e.target.dataset.del);
+      state.services.forEach(sv=>{
+        sv.assigned = (sv.assigned||[]).filter(id=>id!==e.target.dataset.del);
+      });
+      renderAll();
+    });
+  });
+}
+function gradeOptionsFor(role){ return ['S','A/A-','B+/B','C/F']; }
+function handleStaffChange(e){
+  const s = state.staff.find(x=>x.id===e.target.dataset.s);
+  const f = e.target.dataset.f;
+  if(f==='basic'||f==='ownClients') s[f] = num(e.target.value);
+  else if(f==='valuesPass') s[f] = e.target.value==='true';
+  else s[f] = e.target.value;
+  renderAll();
+}
+function addStaff(){
+  state.staff.push({id:uid('s'), name:'New Staff', role:'DM', basic:3000, grade:'B+/B', valuesPass:true, ownClients:0});
+  renderAll();
+}
+
+function gradePctLookup(role,grade){
+  const table = state.gradeTable[role]||{};
+  const key = grade==='A/A-'?'A':grade==='B+/B'?'B':grade;
+  return table[key] ?? 0;
+}
+
+function renderMainComm(R){
+  const body = document.getElementById('mainCommBody');
+  body.innerHTML = state.staff.map(s=>{
+    const m = R.mainComm[s.id];
+    const disabledNote = (s.role==='FM' && !state.assumptions.fmMainCommEnabled) ? ' <span style="color:var(--text-dim);font-size:11px;">(已移除)</span>' : '';
+    return `<tr>
+      <td>${escHtml(s.name)}${disabledNote}</td>
+      <td>${s.role}</td>
+      <td>${escHtml(s.grade)}</td>
+      <td>${pctfmt(m.ratio)}</td>
+      <td>${pctfmt(m.gradePct/100)}</td>
+      <td>${fmt(m.amt)}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('mainCommTotal').textContent = fmt(R.totalMainComm);
+}
+
+function renderServices(R){
+  const wrap = document.getElementById('servicesTableWrap');
+  const assignable = state.staff.filter(s=>s.role!=='FM'); // FM is always-on, not picked here
+
+  let html = `<table><thead><tr>
+    <th>Service</th><th>Type</th><th>Cadence</th><th>Fee</th><th>Cost</th><th>Disc%</th>
+    <th>Pool%</th><th>Pool</th><th>Active</th><th>Assigned（谁拿多少）</th><th>Co.Extra</th><th></th>
+  </tr></thead><tbody>`;
+
+  html += state.services.map((sv,i)=>{
+    const row = R.serviceRows[i];
+    const isOverride = sv.poolPctOverride!==null && sv.poolPctOverride!==undefined && sv.poolPctOverride!=='';
+    const assignedIds = sv.assigned||[];
+    return `<tr>
+      <td><input class="txt" value="${escAttr(sv.name)}" data-sv="${sv.id}" data-f="name"></td>
+      <td>
+        <select data-sv="${sv.id}" data-f="type">
+          <option value="Standard" ${sv.type==='Standard'?'selected':''}>Standard</option>
+          <option value="2ndBranch" ${sv.type==='2ndBranch'?'selected':''}>2nd Branch</option>
+        </select>
+      </td>
+      <td>
+        <select data-sv="${sv.id}" data-f="cadence">
+          <option value="Monthly" ${sv.cadence==='Monthly'?'selected':''}>Monthly</option>
+          <option value="One-Time" ${sv.cadence==='One-Time'?'selected':''}>One-Time</option>
+        </select>
+      </td>
+      <td><input type="number" class="narrow" value="${sv.fee}" data-sv="${sv.id}" data-f="fee"></td>
+      <td><input type="number" class="narrow" value="${sv.cost}" data-sv="${sv.id}" data-f="cost"></td>
+      <td><input type="number" class="narrow" value="${sv.discPct}" data-sv="${sv.id}" data-f="discPct"></td>
+      <td><input type="number" class="pct" placeholder="${sv.type==='2ndBranch'?state.assumptions.secondBranchPoolPct:state.assumptions.standardPoolPct}" value="${isOverride?sv.poolPctOverride:''}" data-sv="${sv.id}" data-f="poolPctOverride" title="留空 = 自动套用 Type 的默认 Pool%"></td>
+      <td>${fmt(row.pool)}</td>
+      <td style="text-align:center"><input type="checkbox" class="chk" ${sv.active?'checked':''} data-sv="${sv.id}" data-f="active"></td>
+      <td>${assignBox(sv, assignedIds, assignable, row)}</td>
+      <td>${fmt(row.coExtra)}</td>
+      <td><button class="ghost sm" data-delsv="${sv.id}">✕</button></td>
+    </tr>`;
+  }).join('');
+
+  const totalMonthly = R.serviceRows.filter(r=>r.sv.cadence==='Monthly'&&r.sv.active).reduce((s,r)=>s+r.pool,0);
+  const totalOneTime = R.serviceRows.filter(r=>r.sv.cadence==='One-Time'&&r.sv.active).reduce((s,r)=>s+r.pool,0);
+  html += `</tbody><tfoot>
+    <tr><td colspan="7">MONTHLY TOTAL POOL</td><td>${fmt(totalMonthly)}</td><td colspan="4"></td></tr>
+    <tr><td colspan="7">ONE-TIME TOTAL POOL</td><td>${fmt(totalOneTime)}</td><td colspan="4"></td></tr>
+  </tfoot></table>`;
+  wrap.innerHTML = html;
+
+  wrap.querySelectorAll('input[data-sv], select[data-sv]').forEach(el=>{
+    const evt = (el.type==='checkbox'||el.tagName==='SELECT') ? 'change':'input';
+    el.addEventListener(evt, e=>{
+      const sv = state.services.find(x=>x.id===e.target.dataset.sv);
+      const f = e.target.dataset.f;
+      if(f==='fee'||f==='cost'||f==='discPct') sv[f]=num(e.target.value);
+      else if(f==='poolPctOverride') sv[f] = e.target.value===''? null : num(e.target.value);
+      else if(f==='active') sv[f] = e.target.checked;
+      else sv[f] = e.target.value;
+      renderAll();
+    });
+  });
+  wrap.querySelectorAll('[data-assign]').forEach(el=>{
+    el.addEventListener('change', e=>{
+      const sv = state.services.find(x=>x.id===e.target.dataset.sv);
+      const staffId = e.target.dataset.assign;
+      const set = new Set(sv.assigned||[]);
+      if(e.target.checked) set.add(staffId); else set.delete(staffId);
+      sv.assigned = Array.from(set);
+      renderAll();
+    });
+  });
+  wrap.querySelectorAll('[data-delsv]').forEach(el=>{
+    el.addEventListener('click', e=>{
+      state.services = state.services.filter(sv=>sv.id!==e.target.dataset.delsv);
+      renderAll();
+    });
+  });
+}
+function assignBox(sv, assignedIds, assignable, row){
+  if(assignable.length===0) return '<span style="color:var(--text-dim);font-size:11px;">先在 Team Roster 加人</span>';
+  const chips = assignable.map(st=>{
+    const checked = assignedIds.includes(st.id);
+    const amt = st.role==='DM' ? row.dmShareEach : row.dsShareEach;
+    return `<label class="assign-chip ${checked?'on':''}">
+      <input type="checkbox" data-sv="${sv.id}" data-assign="${st.id}" ${checked?'checked':''}>
+      ${escHtml(st.name)} <span class="role-tag">${st.role}</span>${checked?` <b>${fmt(amt)}</b>`:''}
+    </label>`;
+  }).join('');
+  return `<div class="assign-box">${chips}</div>`;
+}
+function addService(){
+  state.services.push({
+    id:uid('sv'), name:'New Service', type:'Standard', cadence:'Monthly',
+    fee:0, cost:0, discPct:0, active:true, poolPctOverride:null,
+    assigned:[]
+  });
+  renderAll();
+}
+
+function renderBreakdown(R){
+  const body = document.getElementById('breakdownBody');
+  const rows = [];
+  R.serviceRows.forEach(row=>{
+    if(!row.sv.active) return;
+    row.breakdown.forEach(b=>{
+      rows.push(`<tr><td>${escHtml(row.sv.name)}</td><td>${escHtml(b.name)}</td><td>${b.role}</td><td>${row.sv.cadence}</td><td>${fmt(b.amount)}</td></tr>`);
+    });
+  });
+  body.innerHTML = rows.join('') || '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);">本月没有 Active 的 service，或还没 assign 任何人</td></tr>';
+}
+
+function renderSummary(R){
+  const body = document.getElementById('summaryBody');
+  body.innerHTML = R.perPerson.map(p=>{
+    const flags = [];
+    if(p.subTotal > p.mainComm && p.mainComm>0) flags.push('<span class="flag bad">Sub &gt; Main</span>');
+    if(flags.length===0) flags.push('<span class="flag ok">OK</span>');
+    const epf = (p.mainComm+p.subTotal)*(state.assumptions.epfPct/100);
+    return `<tr>
+      <td>${escHtml(p.staff.name)} <span style="color:var(--text-dim);font-size:11px;">(${p.staff.role})</span></td>
+      <td>${fmt(p.mainComm)}</td>
+      <td>${fmt(p.subTotal)}</td>
+      <td>${fmt(p.totalComm)}</td>
+      <td>${fmt(epf)}</td>
+      <td>${fmt(p.totalComm+epf)}</td>
+      <td>${fmt(p.totalCost)}</td>
+      <td>${flags.join(' ')}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderBudget(R){
+  const stats = document.getElementById('budgetStats');
+  const A = state.assumptions;
+  const over = R.teamCostPct > A.budgetCapPct/100;
+  stats.innerHTML = `
+    <div class="stat"><div class="label">Total Revenue</div><div class="value">${fmt(R.totalRevenue)}</div></div>
+    <div class="stat"><div class="label">Total Team Cost</div><div class="value">${fmt(R.teamCost)}</div></div>
+    <div class="stat"><div class="label">Team Cost %</div><div class="value ${over?'':''}" style="color:${over?'var(--bad)':'var(--good)'}">${pctfmt(R.teamCostPct)}</div></div>
+    <div class="stat"><div class="label">${A.budgetCapPct}% Budget Cap</div><div class="value small">${fmt(R.totalRevenue*A.budgetCapPct/100)}</div></div>
+    <div class="stat"><div class="label">Buffer</div><div class="value small" style="color:${over?'var(--bad)':'var(--good)'}">${pctfmt(A.budgetCapPct/100-R.teamCostPct)}</div></div>
+  `;
+  const rows = [
+    ['Total Revenue (MRR + Subcomm Fee)', fmt(R.totalRevenue)],
+    ['&nbsp;&nbsp;— MRR', fmt(R.totalMRR)],
+    ['&nbsp;&nbsp;— Subcomm Fee (Monthly, active)', fmt(R.revenueMonthlyFee)],
+    ['&nbsp;&nbsp;— Subcomm Fee (One-Time, active)', fmt(R.revenueOneTimeFee)],
+    ['Total Basic', fmt(R.totalBasic)],
+    ['Total Main Comm', fmt(R.totalMainComm)],
+    ['Total Subcomm (team portion)', fmt(R.totalSubcomm)],
+    ['EPF 13% (Basic + Main Comm)', fmt(R.epfBasicMain)],
+    ['EPF 13% (Subcomm)', fmt(R.epfSubcomm)],
+    ['<b>TOTAL TEAM COST</b>', '<b>'+fmt(R.teamCost)+'</b>'],
+    ['Team Cost % of Total Revenue', pctfmt(R.teamCostPct)],
+    [A.budgetCapPct+'% Budget Cap', A.budgetCapPct+'.0%'],
+    ['Remaining Buffer', pctfmt(A.budgetCapPct/100-R.teamCostPct)],
+    ['STATUS', over? '<span class="flag bad">🚨 OVER BUDGET</span>' : '<span class="flag ok">✅ WITHIN BUDGET</span>']
+  ];
+  document.getElementById('budgetBody').innerHTML = rows.map(([l,v])=>`<tr><td>${l}</td><td style="text-align:right">${v}</td></tr>`).join('');
+}
+
+function escHtml(s){ return (s??'').toString().replace(/[&<>]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+function escAttr(s){ return (s??'').toString().replace(/"/g,'&quot;'); }
+
+/* ============================================================
+   MONTHLY PDF REPORT (browser print → "Save as PDF")
+   ============================================================ */
+function generateMonthlyPDF(){
+  const R = compute();
+  const A = state.assumptions;
+  const month = state.reportMonth || defaultMonthLabel();
+  const over = R.teamCostPct > A.budgetCapPct/100;
+  const genDate = new Date().toLocaleString('zh-CN', {year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'});
+
+  const mainRows = state.staff.map(s=>{
+    const m = R.mainComm[s.id];
+    return `<tr><td>${escHtml(s.name)}</td><td>${s.role}</td><td>${escHtml(s.grade)}</td><td>${pctfmt(m.ratio)}</td><td>${pctfmt(m.gradePct/100)}</td><td>${fmt(m.amt)}</td></tr>`;
+  }).join('');
+
+  const activeServiceRows = R.serviceRows.filter(r=>r.sv.active).map(r=>`
+    <tr><td>${escHtml(r.sv.name)}</td><td>${r.sv.type==='2ndBranch'?'2nd Branch':'Standard'}</td><td>${r.sv.cadence}</td>
+    <td>${fmt(r.sv.fee)}</td><td>${fmt(r.sv.cost)}</td><td>${r.sv.discPct}%</td><td>${r.poolPct}%</td><td>${fmt(r.pool)}</td></tr>
+  `).join('') || '<tr><td colspan="8" style="text-align:center;color:#888;">（本月没有 Active 的 service）</td></tr>';
+
+  const breakdownRows = [];
+  R.serviceRows.forEach(r=>{
+    if(!r.sv.active) return;
+    r.breakdown.forEach(b=>{
+      breakdownRows.push(`<tr><td>${escHtml(r.sv.name)}</td><td>${escHtml(b.name)}</td><td>${b.role}</td><td>${r.sv.cadence}</td><td>${fmt(b.amount)}</td></tr>`);
+    });
+  });
+  const breakdownHTML = breakdownRows.join('') || '<tr><td colspan="5" style="text-align:center;color:#888;">（没有 assign 任何人）</td></tr>';
+
+  const summaryRows = R.perPerson.map(p=>{
+    const epf = (p.mainComm+p.subTotal)*(A.epfPct/100);
+    const flags = [];
+    if(p.subTotal > p.mainComm && p.mainComm>0) flags.push('Sub&gt;Main');
+    return `<tr><td>${escHtml(p.staff.name)} (${p.staff.role})</td><td>${fmt(p.mainComm)}</td><td>${fmt(p.subTotal)}</td>
+      <td>${fmt(p.totalComm)}</td><td>${fmt(epf)}</td><td>${fmt(p.totalComm+epf)}</td><td>${fmt(p.totalCost)}</td>
+      <td>${flags.join(', ')||'-'}</td></tr>`;
+  }).join('');
+
+  const budgetRows = [
+    ['Total Revenue (MRR + Subcomm Fee)', fmt(R.totalRevenue)],
+    ['— MRR', fmt(R.totalMRR)],
+    ['— Subcomm Fee (Monthly, active)', fmt(R.revenueMonthlyFee)],
+    ['— Subcomm Fee (One-Time, active)', fmt(R.revenueOneTimeFee)],
+    ['Total Basic', fmt(R.totalBasic)],
+    ['Total Main Comm', fmt(R.totalMainComm)],
+    ['Total Subcomm (team portion)', fmt(R.totalSubcomm)],
+    ['EPF 13% (Basic + Main Comm)', fmt(R.epfBasicMain)],
+    ['EPF 13% (Subcomm)', fmt(R.epfSubcomm)],
+    ['<b>TOTAL TEAM COST</b>', '<b>'+fmt(R.teamCost)+'</b>'],
+  ].map(([l,v])=>`<tr><td>${l}</td><td style="text-align:right">${v}</td></tr>`).join('');
+
+  document.getElementById('printReport').innerHTML = `
+    <h1>Fulfilment Team Commission Report — ${escHtml(month)}</h1>
+    <div class="meta">生成时间：${genDate}　·　当月 Total Clients：${R.totalClients}
+      <span class="badge ${over?'bad':'good'}">Team Cost ${pctfmt(R.teamCostPct)} / ${A.budgetCapPct}% Cap — ${over?'🚨 OVER BUDGET':'✅ WITHIN BUDGET'}</span>
+    </div>
+
+    <div class="stats">
+      <div><div class="label">Total Revenue</div><div class="value">${fmt(R.totalRevenue)}</div></div>
+      <div><div class="label">Total Team Cost</div><div class="value">${fmt(R.teamCost)}</div></div>
+      <div><div class="label">Team Cost %</div><div class="value">${pctfmt(R.teamCostPct)}</div></div>
+      <div><div class="label">Buffer vs Cap</div><div class="value">${pctfmt(A.budgetCapPct/100-R.teamCostPct)}</div></div>
+    </div>
+
+    <h2>Main Comm</h2>
+    <table><thead><tr><th>角色</th><th>Type</th><th>Grade</th><th>比例</th><th>Grade%</th><th>Amount</th></tr></thead>
+    <tbody>${mainRows}</tbody>
+    <tfoot><tr><td colspan="5"><b>TOTAL MAIN COMM</b></td><td><b>${fmt(R.totalMainComm)}</b></td></tr></tfoot></table>
+
+    <h2>Subcomm — Active Services（本月生效的项目）</h2>
+    <table><thead><tr><th>Service</th><th>Type</th><th>Cadence</th><th>Fee</th><th>Cost</th><th>Disc%</th><th>Pool%</th><th>Pool</th></tr></thead>
+    <tbody>${activeServiceRows}</tbody></table>
+
+    <h2>Subcomm 明细（谁在哪个项目拿多少）</h2>
+    <table><thead><tr><th>Service</th><th>人</th><th>角色</th><th>Cadence</th><th>金额</th></tr></thead>
+    <tbody>${breakdownHTML}</tbody></table>
+
+    <h2>Per-Person Summary</h2>
+    <table><thead><tr><th>角色</th><th>Main Comm</th><th>Subcomm</th><th>Total Comm</th><th>EPF 13%</th><th>Total+EPF</th><th>Total Cost</th><th>Flag</th></tr></thead>
+    <tbody>${summaryRows}</tbody></table>
+
+    <h2>Budget Check</h2>
+    <table><tbody>${budgetRows}</tbody></table>
+  `;
+
+  const prevTitle = document.title;
+  document.title = `FM Commission ${month}`;
+  window.print();
+  document.title = prevTitle;
+}
+
+/* theme init not needed: styles are token-driven via CSS */
+if(!state.reportMonth) state.reportMonth = defaultMonthLabel();
+renderAll();
+const monthInputEl = document.getElementById('reportMonthInput');
+monthInputEl.value = state.reportMonth;
+monthInputEl.addEventListener('input', e=>{ state.reportMonth = e.target.value; save(); });
+</script>
+</body>
+</html>
